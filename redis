@@ -1,0 +1,64 @@
+#!/bin/sh
+# chkconfig: 2345 10 90 
+# description: Start and Stop redis
+PORT=6379
+BASE_DIR=/usr/local/redis
+DATA_DIR=/usr/local/redis/data
+CONF=$BASE_DIR/redis.conf
+case "$1" in
+  start)
+    process=`netstat -ntl|grep $PORT | wc -l`
+    if [ $process -eq 0 ]
+    then
+        $BASE_DIR/bin/redis-server $CONF &
+        if [ $? -eq 0 ]; then
+            echo "Starting Redis server sucefully"
+        else
+            echo "Starting Redis server fail,refer to the log information for details"
+        fi
+    else
+        echo "Port "$PORT is exists, process is already running""
+    fi
+    ;;
+  stop)
+    process=`lsof -i:$PORT -t`
+    if [ $process ]; then
+        echo "Stopping ..."
+        #kill -9 $process
+        #$BASE_DIR/bin/redis-cli -p $PORT -a $2  shutdown 
+        msg=`$BASE_DIR/bin/redis-cli -p $PORT shutdown`
+        result=$(echo $msg | grep "Authentication")
+        if [[ "$result" = "" ]]; then
+            while [ -x /proc/${process} ]
+            do
+                echo "Waiting for Redis to shutdown ..."
+                sleep 1
+            done
+            echo "Redis stopped"
+        else
+            echo "Authentication failed,please check redis password" 
+            exit -1
+        fi
+    else
+        echo "Process is not running"
+    fi
+    ;;
+  restart)
+    process=`lsof -i:$PORT -t`
+    if [ $process ]; then
+        "$0" stop
+        if [ $? -eq 0 ]; then
+            "$0" start
+        fi
+    else
+        "$0" start
+    fi
+    ;;
+  *)
+    echo "Please use start or stop or restart as first argument"
+
+    ;;
+esac
+
+    ;;
+esac
